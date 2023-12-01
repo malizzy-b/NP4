@@ -1,0 +1,55 @@
+// Adicione os imports necessários
+import 'package:aqueduct/aqueduct.dart';
+
+class Participant extends ManagedObject<_Participant> implements _Participant {}
+
+class _Participant {
+  @primaryKey
+  int? id;
+
+  @Column(unique: true)
+  late String name;
+
+  @Column(unique: true)
+  late String ra;
+}
+
+class ParticipantsController extends ResourceController {
+  ParticipantsController(this.context);
+
+  final ManagedContext context;
+
+  @Operation.get()
+  Future<Response> getAllParticipants() async {
+    final participantsQuery = Query<Participant>(context);
+    final participants = await participantsQuery.fetch();
+
+    return Response.ok(participants);
+  }
+}
+
+class MyAppChannel extends ApplicationChannel {
+  late ManagedContext context;
+
+  @override
+  Future prepare() async {
+    final dataModel = ManagedDataModel.fromCurrentMirrorSystem();
+    final persistentStore = PostgreSQLPersistentStore.fromConnectionInfo(
+      "dart", "dart", "localhost", 5432, "dart_test",
+    );
+
+    context = ManagedContext(dataModel, persistentStore);
+  }
+
+  @override
+  Controller get entryPoint => Router()
+    ..route("/participants").link(() => ParticipantsController(context));
+}
+
+Future main() async {
+  final app = Application<MyAppChannel>()
+    ..options.configurationFilePath = "config.yaml"
+    ..options.port = 8888;
+
+  await app.start(numberOfInstances: 3);
+}
